@@ -1,0 +1,128 @@
+name: Build release binaries
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux
+          - os: windows-latest
+            platform: windows
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node 26
+        uses: actions/setup-node@v6
+        with:
+          node-version: "26"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Syntax check
+        run: npm run check
+
+      - name: Build standalone binary
+        run: npm run build:binary
+
+      - name: Smoke test Linux binary
+        if: runner.os == 'Linux'
+        run: ./dist/satisfactory-blueprint-recover-linux-x64 --help
+
+      - name: Smoke test Windows binary
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: .\dist\satisfactory-blueprint-recover-windows-x64.exe --help
+
+      - name: Package Linux release
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          mkdir -p release/satisfactory-blueprint-recover
+
+          cp \
+            dist/satisfactory-blueprint-recover-linux-x64 \
+            release/satisfactory-blueprint-recover/satisfactory-blueprint-recover
+
+          cp README.md LICENSE release/satisfactory-blueprint-recover/
+
+          tar \
+            -C release \
+            -czf release/satisfactory-blueprint-recover-linux-x64.tar.gz \
+            satisfactory-blueprint-recover
+
+      - name: Package Windows release
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $dir = "release\satisfactory-blueprint-recover"
+
+          New-Item -ItemType Directory -Force -Path $dir | Out-Null
+
+          Copy-Item `
+            "dist\satisfactory-blueprint-recover-windows-x64.exe" `
+            "$dir\satisfactory-blueprint-recover.exe"
+
+          Copy-Item "README.md" "$dir\README.md"
+          Copy-Item "LICENSE" "$dir\LICENSE"
+
+          @'
+          @echo off
+          cd /d "%~dp0"
+          satisfactory-blueprint-recover.exe
+          echo.
+          pause
+          '@ | Set-Content -Encoding ascii "$dir\Recover Blueprints.cmd"
+
+          Compress-Archive `
+            -Path "$dir\*" `
+            -DestinationPath "release\satisfactory-blueprint-recover-windows-x64.zip"
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: binary-${{ matrix.platform }}
+          path: |
+            release/*.zip
+            release/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download built binaries
+        uses: actions/download-artifact@v5
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Show release assets
+        run: ls -lah release-assets
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            release-assets/* \
+            --verify-tag \
+            --generate-notes \
+            --title "$GITHUB_REF_NAME"

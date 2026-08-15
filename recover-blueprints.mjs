@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import fs from "fs";
-import path from "path";
-import os from "os";
-import crypto from "crypto";
-import readline from "readline/promises";
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import crypto from "node:crypto";
+import readline from "node:readline/promises";
 import { Parser, SaveEntity } from "@etothepii/satisfactory-file-parser";
 
 const APP_ID = "526870";

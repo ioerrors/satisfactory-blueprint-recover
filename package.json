@@ -7,7 +7,8 @@
     "satisfactory-blueprint-recover": "./recover-blueprints.mjs"
   },
   "scripts": {
-    "check": "node --check recover-blueprints.mjs"
+    "check": "node --check recover-blueprints.mjs",
+    "build:binary": "node scripts/build-binary.mjs"
   },
   "engines": {
     "node": ">=20"
@@ -21,5 +22,8 @@
     "blueprint",
     "recovery",
     "savegame"
-  ]
+  ],
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
 }
