@@ -1356,42 +1356,134 @@ function analyzeBlueprintPlacements(save) {
     };
 }
 
-function inferDesignerDimension(bpName) {
-    const match =
-        String(bpName)
-            .match(
-                /\b(\d+)\s*[xX]\s*(\d+)\b/
-            );
+function getBlueprintProxyLocalBounds(proxy) {
+    let box =
+        proxy?.properties?.mLocalBounds;
 
-    if (match) {
-        const n =
-            Math.max(
-                Number(match[1]),
-                Number(match[2])
-            );
-
+    /*
+     * Property representations can be wrapped in one or more .value layers.
+     * Peel those without making the classifier depend on one parser layout.
+     */
+    for (let i = 0; i < 4; ++i) {
         if (
-            Number.isFinite(n) &&
-            n >= 4 &&
-            n <= 10
+            box &&
+            typeof box === "object" &&
+            box.value &&
+            typeof box.value === "object"
         ) {
-            return {
-                x: n,
-                y: n,
-                z: n
-            };
+            box = box.value;
+            continue;
         }
+
+        break;
+    }
+
+    const min =
+        box?.min ??
+        box?.Min;
+
+    const max =
+        box?.max ??
+        box?.Max;
+
+    const readAxis = (value, axis) =>
+        value?.[axis] ??
+        value?.[axis.toUpperCase()];
+
+    const bounds = {
+        min: {
+            x: readAxis(min, "x"),
+            y: readAxis(min, "y"),
+            z: readAxis(min, "z")
+        },
+        max: {
+            x: readAxis(max, "x"),
+            y: readAxis(max, "y"),
+            z: readAxis(max, "z")
+        }
+    };
+
+    if (
+        !Number.isFinite(bounds.min.x) ||
+        !Number.isFinite(bounds.min.y) ||
+        !Number.isFinite(bounds.min.z) ||
+        !Number.isFinite(bounds.max.x) ||
+        !Number.isFinite(bounds.max.y) ||
+        !Number.isFinite(bounds.max.z)
+    ) {
+        return null;
+    }
+
+    return bounds;
+}
+
+function inferDesignerDimension(proxy) {
+    const mk1 = {
+        x: 4,
+        y: 4,
+        z: 4
+    };
+
+    const bounds =
+        getBlueprintProxyLocalBounds(proxy);
+
+    /*
+     * Mk1 is the safe base case. Bounds are used only to promote a recovered
+     * blueprint to a larger Designer. If mLocalBounds is unavailable or its
+     * parser representation changes, keeping Mk1 still yields a loadable
+     * blueprint; the user can place it in a larger Designer and resave it.
+     */
+    if (!bounds) {
+        return mk1;
     }
 
     /*
-     * v2 used a 5x5 current-format canary for every recovered blueprint and
-     * the game accepted it. Keep that proven fallback when the original
-     * designer size is not recoverable from placement data.
+     * Designer nominal dimensions:
+     *
+     *   Mk1: +/-1600 cm X/Y, 3200 cm Z
+     *   Mk2: +/-2000 cm X/Y, 4000 cm Z
+     *   Mk3: +/-2400 cm X/Y, 4800 cm Z
+     *
+     * A native Mk1 edge-torture fixture legitimately produced proxy bounds
+     * of +/-1800 cm X/Y, demonstrating that mLocalBounds can extend 200 cm
+     * beyond the nominal editing volume for legal edge-placed buildables.
+     *
+     * Classification therefore uses a forgiving half-tier tolerance:
+     *
+     *   Mk1 -> Mk2 promotion: beyond +/-1800 cm X/Y or 3600 cm Z
+     *   Mk2 -> Mk3 promotion: beyond +/-2200 cm X/Y or 4400 cm Z
+     *
+     * Underclassification is intentionally preferred: recovered blueprints
+     * remain loadable and can be placed into a larger Designer and resaved.
      */
+    const epsilon = 1;
+
+    const fits = (
+        halfWidth,
+        maxHeight
+    ) =>
+        bounds.min.x >= -halfWidth - epsilon &&
+        bounds.max.x <=  halfWidth + epsilon &&
+        bounds.min.y >= -halfWidth - epsilon &&
+        bounds.max.y <=  halfWidth + epsilon &&
+        bounds.max.z <=  maxHeight + epsilon;
+
+    if (fits(1800, 3600)) {
+        return mk1;
+    }
+
+    if (fits(2200, 4400)) {
+        return {
+            x: 5,
+            y: 5,
+            z: 5
+        };
+    }
+
     return {
-        x: 5,
-        y: 5,
-        z: 5
+        x: 6,
+        y: 6,
+        z: 6
     };
 }
 
@@ -1603,7 +1695,8 @@ function makeCustomizationProperty(lw) {
 function createBlueprintSkeleton({
     save,
     bpName,
-    playerInfoHandle
+    playerInfoHandle,
+    designerDimension
 }) {
     if (!save?.compressionInfo) {
         throw new Error(
@@ -1635,8 +1728,8 @@ function createBlueprintSkeleton({
             buildVersion:
                 save.header.buildVersion,
             designerDimension:
-                inferDesignerDimension(
-                    bpName
+                deepClone(
+                    designerDimension
                 ),
             itemCosts: [],
             recipeReferences: [],
@@ -2413,11 +2506,17 @@ function recoverOne({
      * metadata. Native test blueprints were needed to discover this format,
      * but are no longer runtime dependencies.
      */
+    const designerDimension =
+        inferDesignerDimension(
+            proxyOriginal
+        );
+
     const blueprint =
         createBlueprintSkeleton({
             save,
             bpName,
-            playerInfoHandle
+            playerInfoHandle,
+            designerDimension
         });
 
     blueprint.header.recipeReferences =
