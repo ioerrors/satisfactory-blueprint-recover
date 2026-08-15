@@ -57,6 +57,8 @@ const parserLicense = firstExisting(
     [
         path.join(parserRoot, "LICENSE"),
         path.join(parserRoot, "LICENSE.md"),
+        path.join(parserRoot, "LICENCE"),
+        path.join(parserRoot, "LICENCE.md"),
     ]
 );
 
