@@ -1,6 +1,6 @@
 {
   "name": "satisfactory-blueprint-recover",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Recover Satisfactory blueprint files from placed blueprint instances in a save.",
   "type": "module",
   "bin": {

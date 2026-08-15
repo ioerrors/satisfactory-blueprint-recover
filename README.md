@@ -4,8 +4,29 @@ Recovers missing `.sbp` / `.sbpcfg` files from blueprint instances that still ex
 
 ## Install
 
+### Easiest
+
+Download the latest release:
+
+https://github.com/ioerrors/satisfactory-blueprint-recover/releases/latest
+
+**Windows:** download and extract `satisfactory-blueprint-recover-windows-x64.zip`, then double-click `Recover Blueprints.cmd`.
+
+**Linux:** download and extract `satisfactory-blueprint-recover-linux-x64.tar.gz`, then run:
+
 ```bash
+./satisfactory-blueprint-recover
+```
+
+No Node.js or npm installation is required for the release binaries.
+
+### From source
+
+```bash
+git clone https://github.com/ioerrors/satisfactory-blueprint-recover.git
+cd satisfactory-blueprint-recover
 npm install
+node recover-blueprints.mjs
 ```
 
 ## Normal use
