@@ -40,6 +40,9 @@ jobs:
       - name: Build standalone binary
         run: npm run build:binary
 
+      - name: Collect third-party licenses
+        run: node scripts/collect-licenses.mjs
+
       - name: Smoke test Linux binary
         if: runner.os == 'Linux'
         run: ./dist/satisfactory-blueprint-recover-linux-x64 --help
@@ -59,7 +62,7 @@ jobs:
             dist/satisfactory-blueprint-recover-linux-x64 \
             release/satisfactory-blueprint-recover/satisfactory-blueprint-recover
 
-          cp README.md LICENSE release/satisfactory-blueprint-recover/
+          cp README.md LICENSE dist/THIRD_PARTY_LICENSES.txt release/satisfactory-blueprint-recover/
 
           tar \
             -C release \
@@ -80,6 +83,7 @@ jobs:
 
           Copy-Item "README.md" "$dir\README.md"
           Copy-Item "LICENSE" "$dir\LICENSE"
+          Copy-Item "dist\THIRD_PARTY_LICENSES.txt" "$dir\THIRD_PARTY_LICENSES.txt"
 
           @'
           @echo off
@@ -94,7 +98,7 @@ jobs:
             -DestinationPath "release\satisfactory-blueprint-recover-windows-x64.zip"
 
       - name: Upload release artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: binary-${{ matrix.platform }}
           path: |
@@ -109,7 +113,7 @@ jobs:
 
     steps:
       - name: Download built binaries
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v8
         with:
           path: release-assets
           merge-multiple: true

@@ -31,6 +31,18 @@ node recover-blueprints.mjs
 
 ## Normal use
 
+Launch the tool with no arguments.
+
+**Windows release:** double-click `Recover Blueprints.cmd`, or run `satisfactory-blueprint-recover.exe` from the extracted folder.
+
+**Linux release:**
+
+```bash
+./satisfactory-blueprint-recover
+```
+
+**From source:**
+
 ```bash
 node recover-blueprints.mjs
 ```
@@ -39,17 +51,17 @@ With no arguments the tool discovers local Satisfactory **world saves**, chooses
 
 The discovery layer intentionally ignores `.sav` management/config files stored directly in `SaveGames` (for example `ServerManager_V2.sav`). If a discovered candidate is corrupt or not a world save, zero-argument mode falls through to the next-newest candidate.
 
-Other useful modes:
+For command-line use, these options are also available:
 
-```bash
-node recover-blueprints.mjs --select
-node recover-blueprints.mjs --list
-node recover-blueprints.mjs --save /path/to/save.sav
-node recover-blueprints.mjs --out ./recovered-blueprints
-node recover-blueprints.mjs --dry-run
+```text
+--select
+--list
+--save /path/to/save.sav
+--out ./recovered-blueprints
+--dry-run
 ```
 
-Run `node recover-blueprints.mjs --help` for the full option list.
+Run with `--help` for the full option list.
 
 ## Platform discovery
 
