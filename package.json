@@ -1,0 +1,25 @@
+{
+  "name": "satisfactory-blueprint-recover",
+  "version": "0.1.0",
+  "description": "Recover Satisfactory blueprint files from placed blueprint instances in a save.",
+  "type": "module",
+  "bin": {
+    "satisfactory-blueprint-recover": "./recover-blueprints.mjs"
+  },
+  "scripts": {
+    "check": "node --check recover-blueprints.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@etothepii/satisfactory-file-parser": "^4.1.2"
+  },
+  "license": "MIT",
+  "keywords": [
+    "satisfactory",
+    "blueprint",
+    "recovery",
+    "savegame"
+  ]
+}
