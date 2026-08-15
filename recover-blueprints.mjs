@@ -1817,6 +1817,126 @@ function stripWorldOnlyProperties(value) {
         stripWorldOnlyProperties(child);
 }
 
+function getObjectPropertyPath(property) {
+    let value = property;
+
+    /*
+     * ObjectProperty values are normally one .value layer deep, but tolerate
+     * wrapper changes without coupling this code to one parser representation.
+     */
+    for (let i = 0; i < 4; ++i) {
+        if (!value || typeof value !== "object")
+            return null;
+
+        if (typeof value.pathName === "string")
+            return value.pathName || null;
+
+        value = value.value;
+    }
+
+    return null;
+}
+
+function sanitizeRecoveredRuntimeState(objects) {
+    /*
+     * mInventoryPotential is blueprint configuration rather than ordinary
+     * runtime inventory: it carries installed Power Shards / Somersloops.
+     * Preserve those inventory components exactly as recovered.
+     */
+    const preservedInventories =
+        new Set();
+
+    for (const obj of objects) {
+        const inventoryName =
+            getObjectPropertyPath(
+                obj?.properties
+                    ?.mInventoryPotential
+            );
+
+        if (inventoryName) {
+            preservedInventories.add(
+                inventoryName
+            );
+        }
+    }
+
+    for (const obj of objects) {
+        const properties =
+            obj?.properties;
+
+        /*
+         * These are runtime production-state properties. Normal idle machines
+         * in the placed world may omit them entirely rather than serializing
+         * explicit zero/false values, so let the game initialize them.
+         */
+        if (
+            properties &&
+            typeof properties === "object"
+        ) {
+            delete properties.mCurrentManufacturingProgress;
+            delete properties.mIsProducing;
+        }
+
+        if (
+            preservedInventories.has(
+                obj?.instanceName
+            )
+        ) {
+            continue;
+        }
+
+        /*
+         * Preserve inventory components and their slot structure, but empty
+         * ordinary runtime contents: storage, machine inputs/outputs, etc.
+         */
+        const inventoryStacks =
+            properties
+                ?.mInventoryStacks;
+
+        if (!Array.isArray(inventoryStacks?.values))
+            continue;
+
+        for (const stack of inventoryStacks.values) {
+            const stackProperties =
+                stack?.properties;
+
+            if (
+                !stackProperties ||
+                typeof stackProperties !== "object"
+            ) {
+                continue;
+            }
+
+            const item =
+                stackProperties.Item;
+
+            const numItems =
+                stackProperties.NumItems;
+
+            if (item && typeof item === "object") {
+                item.itemReference = {
+                    levelName: "",
+                    pathName: ""
+                };
+
+                if ("properties" in item)
+                    item.properties = {};
+
+                delete item.itemStateRaw;
+                delete item.rawBytes;
+            }
+
+            if (
+                numItems &&
+                typeof numItems === "object" &&
+                "value" in numItems
+            ) {
+                numItems.value = 0;
+            }
+        }
+    }
+}
+
 function collectBuildRecipes(value, out, key = "") {
     if (!value || typeof value !== "object")
         return;
@@ -2450,6 +2570,10 @@ function recoverOne({
         ...entities,
         ...components.values()
     ];
+
+    sanitizeRecoveredRuntimeState(
+        recoveredObjects
+    );
 
     const internalNames =
         new Set(
